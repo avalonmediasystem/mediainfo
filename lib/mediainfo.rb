@@ -120,6 +120,8 @@ class Mediainfo
   # Size of source file as reported by File.size.
   # Returns nil if you haven't yet fired off the system command.
   def size; File.size(@full_filename) if @full_filename; end
+  def other; @other_proxy ||= StreamProxy.new(self, :other); end
+  def other?; streams.any? { |x| x.other? }; end
   
   class StreamProxy
     def initialize(mediainfo, stream_type)
@@ -198,6 +200,7 @@ class Mediainfo
     
     def [](k); @parsed_response[@stream_type][k]; end
     def []=(k,v); @parsed_response[@stream_type][k] = v; end
+    def other?; :other == @stream_type; end
     
     Mediainfo::SECTIONS.each { |t| define_method("#{t}?") { t == @stream_type } }
   end
@@ -295,7 +298,16 @@ class Mediainfo
     mediainfo_attr_reader :stream_id, "ID"
     
     mediainfo_duration_reader :duration
-    
+    def accurate_duration
+      duration = 0
+      parsed_response[:audio]["duration"].split(':').reverse.each_with_index do |t, pow|
+        t, milli = t.split('.') if pow == 0
+        duration += milli.to_i if milli
+        duration += t.to_i * (60 ** pow) * 1000
+      end
+      duration
+    end
+ 
     mediainfo_attr_reader :sampling_rate
     def sample_rate
       return unless rate = sampling_rate_before_type_cast

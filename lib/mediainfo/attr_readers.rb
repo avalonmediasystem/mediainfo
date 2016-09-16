@@ -48,8 +48,8 @@ module AttrReaders
   def mediainfo_duration_reader(*a)
     mediainfo_attr_reader *a do |v|
       t = 0
-      v.split(/\s+/).each do |tf|
-        case tf
+      v.scan(/\d+\s*\w+/).each do |tf|
+        case tf.gsub(/\s*/,'')
         # XXX haven't actually seen hot they represent hours yet 
         # but hopefully this is ok.. :\
         when /\d+h/  then t += tf.to_i * 60 * 60 * 1000
