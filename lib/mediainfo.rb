@@ -119,19 +119,32 @@ class Mediainfo
 
   attr_reader :streams
 
+  def file_access_scheme
+    if @full_filename.nil?
+      :none
+    elsif URI.regexp.match(@full_filename).nil?
+      nil
+    else
+      URI(@full_filename).scheme
+    end
+  end
+
   # Size of source file as reported by File.size.
   # Returns nil if you haven't yet fired off the system command.
   def size
     return nil if @full_filename.nil?
-    case URI.parse(@full_filename).scheme
+
+    case file_access_scheme
     when nil
       File.size(@full_filename)
-    when 'http','https'
+    when /https?/
       if @http_metadata['content-range']
         @http_metadata['content-range'].split(%r(/)).last.to_i
       else
         @http_metadata['content-length'].to_i
       end
+    when /file/
+      File.size(URI.decode(URI(@full_filename).path))
     else
       nil
     end
@@ -425,27 +438,24 @@ class Mediainfo
 
     @streams = []
 
-    if full_filename
-      uri = URI.parse(full_filename)
-      case uri.scheme
-      when nil
-        @full_filename = File.expand_path full_filename
-        @path          = File.dirname  @full_filename
-        @filename      = File.basename @full_filename
+    @full_filename = full_filename
+    case file_access_scheme
+    when nil
+      @full_filename = File.expand_path full_filename
+      @path          = File.dirname  @full_filename
+      @filename      = File.basename @full_filename
 
-        raise ArgumentError, "need a path to a video file, got nil" unless @full_filename
-        raise ArgumentError, "need a path to a video file, #{@full_filename} does not exist" unless File.exist? @full_filename
-      when /https?/
-        @full_filename = full_filename
-        @http_metadata = open(@full_filename, 'range' => 'bytes=0-0') { |io| io.meta }
-      else
-        @full_filename = full_filename
-      end
-
-      @escaped_full_filename = @full_filename.shell_escape_double_quotes
-
-      self.raw_response = mediainfo!
+      raise ArgumentError, "need a path to a video file, got nil" unless @full_filename
+      raise ArgumentError, "need a path to a video file, #{@full_filename} does not exist" unless File.exist? @full_filename
+    when /https?/
+      @full_filename = full_filename
+      @http_metadata = open(@full_filename, 'range' => 'bytes=0-0') { |io| io.meta }
+    else
+      @full_filename = full_filename
     end
+    @escaped_full_filename = @full_filename.shell_escape_double_quotes unless @full_filename.nil?
+
+    self.raw_response = mediainfo!
   end
 
   def raw_response=(response)
