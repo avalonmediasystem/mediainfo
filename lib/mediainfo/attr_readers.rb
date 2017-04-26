@@ -53,7 +53,7 @@ module AttrReaders
         # XXX haven't actually seen hot they represent hours yet 
         # but hopefully this is ok.. :\
         when /\d+h/  then t += tf.to_i * 60 * 60 * 1000
-        when /\d+mn/ then t += tf.to_i * 60 * 1000
+        when /\d+mn/, /\d+min/ then t += tf.to_i * 60 * 1000
         when /\d+ms/ then t += tf.to_i
         when /\d+s/  then t += tf.to_i * 1000
         else
