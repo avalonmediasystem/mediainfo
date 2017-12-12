@@ -514,7 +514,8 @@ class Mediainfo
 
   private
   def mediainfo!
-    @last_command = "#{path} #{@escaped_full_filename} --Output=XML"
+    output_format = mediainfo_version > '17.0.0' ? 'OLDXML' : 'XML'
+    @last_command = "#{path} #{@escaped_full_filename} --Output=#{output_format}"
     run_command!
   end
 
