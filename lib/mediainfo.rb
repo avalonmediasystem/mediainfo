@@ -421,7 +421,7 @@ class Mediainfo
 
   ###
 
-  def initialize(full_filename = nil)
+  def initialize(full_filename = nil, options = {})
     unless mediainfo_version
       raise UnknownVersionError,
         "Unable to determine mediainfo version. " +
@@ -437,7 +437,7 @@ class Mediainfo
     end
 
     @streams = []
-
+    @options = options
     @full_filename = full_filename
     case file_access_scheme
     when nil
@@ -449,7 +449,9 @@ class Mediainfo
       raise ArgumentError, "need a path to a video file, #{@full_filename} does not exist" unless File.exist? @full_filename
     when /https?/
       @full_filename = full_filename
-      @http_metadata = open(@full_filename, 'range' => 'bytes=0-0') { |io| io.meta }
+      headers = { 'range' => 'bytes=0-0' }
+      headers.merge! @options[:headers] if @options[:headers]
+      @http_metadata = open(@full_filename, headers) { |io| io.meta }
     else
       @full_filename = full_filename
     end
@@ -515,7 +517,13 @@ class Mediainfo
   private
   def mediainfo!
     output_format = mediainfo_version > '17.0.0' ? 'OLDXML' : 'XML'
-    @last_command = "#{path} #{@escaped_full_filename} --Output=#{output_format}"
+    curl_option = if @options && @options[:headers]
+                    headers = @options[:headers].map { |k, v| "#{k}: #{v}" }
+                    (["--File_curl=HttpHeader"] + headers).join(",").yield_self { |s| "'#{s}'" }
+                  else
+                    ""
+                  end
+    @last_command = "#{path} #{curl_option} #{@escaped_full_filename} --Output=#{output_format}"
     run_command!
   end
 
